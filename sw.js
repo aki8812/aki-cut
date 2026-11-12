@@ -1,4 +1,4 @@
-const CACHE_NAME = "aki-cut-v7";
+const CACHE_NAME = "aki-cut-v8";
 const CORE_ASSETS = [
   "./",
   "./index.html",

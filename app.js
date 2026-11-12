@@ -675,7 +675,7 @@ const drawPreview = () => {
     }
     if (guide) {
       vctx.save();
-      vctx.strokeStyle = 'rgba(10, 132, 255, 0.9)';
+      vctx.strokeStyle = 'rgba(255, 214, 10, 0.9)';
       vctx.lineWidth = 1.5 * k;
       vctx.beginPath();
       if (guide.x) { vctx.moveTo(PW / 2, 0); vctx.lineTo(PW / 2, PH); }
@@ -1013,7 +1013,7 @@ const drawRuler = () => {
   }
   const px = st.t * p - sl;
   if (px >= -8 && px <= cw + 8) {
-    g.fillStyle = '#ffffff';
+    g.fillStyle = '#ffd60a';
     g.beginPath();
     g.moveTo(px - 6, 0);
     g.lineTo(px + 6, 0);
