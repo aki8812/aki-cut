@@ -1,0 +1,15 @@
+{
+  "name": "Aki Cut 剪輯",
+  "short_name": "Aki Cut",
+  "description": "在瀏覽器裡剪影片：多軌時間軸、文字字幕、濾鏡轉場、音訊調整，直接匯出 MP4。",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#0a0a0a",
+  "theme_color": "#0a0a0a",
+  "lang": "zh-Hant",
+  "icons": [
+    { "src": "icon/icon-512x512.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icon/icon-512x512.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}

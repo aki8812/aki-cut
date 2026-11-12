@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="zh-Hant-TW">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>Aki Cut 剪輯</title>
+  <meta name="description" content="在瀏覽器裡剪影片：多軌時間軸、文字字幕、濾鏡轉場、音訊調整，直接匯出 MP4。">
+  <link rel="icon" href="favicon.ico">
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#0a0a0a">
+  <link rel="apple-touch-icon" href="icon/icon-512x512.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Aki Cut">
+  <meta name="mobile-web-app-capable" content="yes">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;700;900&family=Noto+Serif+TC:wght@400;700;900&family=LXGW+WenKai+TC:wght@400;700&family=Roboto+Mono:wght@500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+  <div class="app">
+    <header class="top">
+      <div class="brand">
+        <img src="icon/icon-192x192.png" alt="">
+        <b>Aki <span>Cut</span></b>
+      </div>
+      <div class="seg" id="ratio">
+        <button data-r="16:9" class="on">16:9</button>
+        <button data-r="9:16">9:16</button>
+        <button data-r="1:1">1:1</button>
+      </div>
+      <div class="grow"></div>
+      <button class="btn" id="newBtn"><i data-ic="file"></i><span class="t">新專案</span></button>
+      <button class="btn primary" id="exBtn"><i data-ic="download"></i>匯出</button>
+    </header>
+
+    <aside class="panel side" id="side">
+      <div class="ph-h">
+        <div class="seg" id="sideTab">
+          <button data-tab="media" class="on">素材</button>
+          <button data-tab="text">文字</button>
+        </div>
+        <button class="ib sx" data-close><i data-ic="x"></i></button>
+      </div>
+      <div class="host">
+        <div id="sideView"></div>
+      </div>
+    </aside>
+
+    <main class="panel stage">
+      <div class="screen" id="screen">
+        <canvas id="view"></canvas>
+      </div>
+      <div class="transport">
+        <div class="tc" id="tc">00:00.00 <em>/ 00:00.00</em></div>
+        <button class="ib" id="goStart" data-tip="回到開頭" data-tip-pos="top"><i data-ic="skipBack"></i></button>
+        <button class="ib" id="stepBack" data-tip="上一格" data-tip-pos="top"><i data-ic="chevL"></i></button>
+        <button class="play" id="playBtn" data-tip="播放 / 暫停（空白鍵）" data-tip-pos="top"><i data-ic="play"></i></button>
+        <button class="ib" id="stepFwd" data-tip="下一格" data-tip-pos="top"><i data-ic="chevR"></i></button>
+        <button class="ib" id="goEnd" data-tip="跳到結尾" data-tip-pos="top"><i data-ic="skipFwd"></i></button>
+      </div>
+    </main>
+
+    <aside class="panel insp" id="insp">
+      <div class="ph-h">
+        <h3 id="inspTitle">編輯</h3>
+        <button class="ib sx" data-close><i data-ic="x"></i></button>
+      </div>
+      <div class="host">
+        <div id="inspBody"></div>
+      </div>
+    </aside>
+
+    <section class="panel tl">
+      <div class="tl-bar">
+        <button class="ib" id="undoBtn" data-tip="復原（Ctrl+Z）"><i data-ic="undo"></i></button>
+        <button class="ib" id="redoBtn" data-tip="重做（Ctrl+Shift+Z）"><i data-ic="redo"></i></button>
+        <span class="sep"></span>
+        <button class="ib" id="splitBtn" data-tip="分割（S）"><i data-ic="scissors"></i></button>
+        <button class="ib" id="dupBtn" data-tip="複製片段（Ctrl+D）"><i data-ic="copy"></i></button>
+        <button class="ib" id="delBtn" data-tip="刪除（Delete）"><i data-ic="trash"></i></button>
+        <span class="sep"></span>
+        <button class="ib on" id="snapBtn" data-tip="吸附對齊"><i data-ic="magnet"></i></button>
+        <button class="ib" id="addTrack" data-tip="新增軌道"><i data-ic="layers"></i></button>
+        <div class="zoom">
+          <button class="ib" id="zoomOut" data-tip="縮小時間軸"><i data-ic="zoomOut"></i></button>
+          <input type="range" class="ios-range" id="zoom" min="10" max="300" value="60">
+          <button class="ib" id="zoomIn" data-tip="放大時間軸"><i data-ic="zoomIn"></i></button>
+        </div>
+      </div>
+      <div class="host">
+        <div id="tlView">
+          <div class="tl-in" id="tlIn">
+            <div class="rul">
+              <div class="corner"></div>
+              <canvas id="ruler"></canvas>
+            </div>
+            <div id="rows"></div>
+            <div class="ph" id="ph"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <nav class="mnav" id="mnav">
+      <button data-sheet="media"><i data-ic="folder"></i>素材</button>
+      <button data-sheet="text"><i data-ic="type"></i>文字</button>
+      <button data-sheet="insp"><i data-ic="sliders"></i>編輯</button>
+    </nav>
+  </div>
+
+  <div id="pool"></div>
+  <input type="file" id="file" accept="video/*,image/*,audio/*" multiple hidden>
+  <div id="toast"></div>
+  <div id="aki-footer">Made by Aki</div>
+
+  <script src="app.js"></script>
+</body>
+
+</html>
