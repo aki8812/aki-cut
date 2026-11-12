@@ -135,6 +135,9 @@ let t0 = 0;
 let tStart = 0;
 let busy = false;
 let warned = false;
+let lead = null;
+let PW = 1280;
+let PH = 720;
 
 const hasFilter = (() => {
   try {
@@ -669,9 +672,9 @@ const render = (ctx, w, h, t, live) => {
 
 const drawPreview = () => {
   try {
-    render(vctx, W, H, st.t, true);
+    render(vctx, PW, PH, st.t, true);
     if (st.playing) return;
-    const k = W / (view.clientWidth || W);
+    const k = PW / (view.clientWidth || PW);
     const b = boxes.find((x) => x.id === st.sel);
     if (b) {
       vctx.save();
@@ -686,8 +689,8 @@ const drawPreview = () => {
       vctx.strokeStyle = 'rgba(34, 211, 238, 0.9)';
       vctx.lineWidth = 1.5 * k;
       vctx.beginPath();
-      if (guide.x) { vctx.moveTo(W / 2, 0); vctx.lineTo(W / 2, H); }
-      if (guide.y) { vctx.moveTo(0, H / 2); vctx.lineTo(W, H / 2); }
+      if (guide.x) { vctx.moveTo(PW / 2, 0); vctx.lineTo(PW / 2, PH); }
+      if (guide.y) { vctx.moveTo(0, PH / 2); vctx.lineTo(PW, PH / 2); }
       vctx.stroke();
       vctx.restore();
     }
@@ -709,14 +712,21 @@ const fitView = () => {
   const r = $('#screen').getBoundingClientRect();
   const gap = r.width < 500 ? 10 : 20;
   const s = Math.max(0.01, Math.min((r.width - gap * 2) / W, (r.height - gap * 2) / H));
-  view.style.width = `${Math.floor(W * s)}px`;
+  const cw = Math.floor(W * s);
+  view.style.width = `${cw}px`;
   view.style.height = `${Math.floor(H * s)}px`;
+  const pw = clamp(Math.round(cw * Math.min(2, window.devicePixelRatio || 1)), 320, W);
+  const ph = Math.round((pw * H) / W);
+  if (pw !== PW || ph !== PH || view.width !== pw) {
+    PW = pw;
+    PH = ph;
+    view.width = PW;
+    view.height = PH;
+  }
 };
 const setRatio = (r) => {
   st.ratio = SIZES[r] ? r : '16:9';
   [W, H] = SIZES[st.ratio];
-  view.width = W;
-  view.height = H;
   $$('#ratio button').forEach((b) => b.classList.toggle('on', b.dataset.r === st.ratio));
   fitView();
   paint();
@@ -819,6 +829,7 @@ const playEl = (e) => {
 const syncMedia = () => {
   const t = st.t;
   const live = new Set();
+  let cand = null;
   for (const c of st.clips) {
     if (!isAV(c)) continue;
     const on = t >= c.start && t < c.start + c.len;
@@ -836,10 +847,14 @@ const syncMedia = () => {
       else el.volume = clamp(v, 0, 1);
       if (Math.abs(el.playbackRate - c.speed) > 0.001) el.playbackRate = c.speed;
       if (st.playing) {
+        if (!el.paused && !el.seeking && el.readyState >= 2 && !(c.type === 'video' && trackOf(c.track)?.hidden)) {
+          if (c.type === 'video' && cand?.c.type !== 'video') cand = { c, e };
+          else if (!cand) cand = { c, e };
+        }
         if (el.paused) {
           if (ready && Math.abs(el.currentTime - want) > 0.05) el.currentTime = want;
           playEl(e);
-        } else if (ready && Math.abs(el.currentTime - want) > 0.25) {
+        } else if (ready && e !== lead?.e && Math.abs(el.currentTime - want) > 0.3) {
           el.currentTime = want;
         }
       } else {
@@ -852,6 +867,7 @@ const syncMedia = () => {
       if (ready && !el.seeking && Math.abs(el.currentTime - want) > 0.1) el.currentTime = want;
     }
   }
+  lead = st.playing ? cand : null;
   els.forEach((e, id) => {
     if (live.has(id)) return;
     if (!e.el.paused) e.el.pause();
@@ -890,10 +906,22 @@ const follow = () => {
   if (x > sl + vis - 24) tlView.scrollLeft = x - 24;
   else if (x < sl) tlView.scrollLeft = Math.max(0, x - 24);
 };
+const leadT = () => {
+  if (!lead) return null;
+  const { c, e } = lead;
+  const el = e.el;
+  if (el.paused || el.seeking || el.readyState < 2 || els.get(c.id) !== e) return null;
+  const t = c.start + (el.currentTime - c.in) / c.speed;
+  return t >= c.start && t < c.start + c.len ? t : null;
+};
 const tick = (now) => {
   if (!st.playing) return;
   const T = total();
-  st.t = tStart + (now - t0) / 1000;
+  const wall = tStart + (now - t0) / 1000;
+  const lt = leadT();
+  st.t = lt != null && Math.abs(lt - wall) < 0.6 ? Math.max(lt, st.t) : wall;
+  tStart = st.t;
+  t0 = now;
   if (st.t >= T) {
     st.t = T;
     pause();
@@ -1313,11 +1341,68 @@ const loadImg = (url) => new Promise((res, rej) => {
   img.onerror = () => rej(new Error('圖片無法解碼'));
   img.src = url;
 });
+const within = (p, ms, msg) => Promise.race([p, sleep(ms).then(() => { throw new Error(msg); })]);
+const boxKids = (dv, a, b) => {
+  const out = [];
+  let p = a;
+  while (p + 8 <= b) {
+    let size = dv.getUint32(p);
+    const kind = String.fromCharCode(dv.getUint8(p + 4), dv.getUint8(p + 5), dv.getUint8(p + 6), dv.getUint8(p + 7));
+    let head = 8;
+    if (size === 1) {
+      size = Number(dv.getBigUint64(p + 8));
+      head = 16;
+    } else if (size === 0) size = b - p;
+    if (size < head || p + size > b) break;
+    out.push([kind, p + head, p + size]);
+    p += size;
+  }
+  return out;
+};
+const boxMeta = async (f) => {
+  let p = 0;
+  let moov = null;
+  while (p + 8 <= f.size) {
+    const dv = new DataView(await f.slice(p, p + 16).arrayBuffer());
+    if (dv.byteLength < 8) break;
+    let size = dv.getUint32(0);
+    const kind = String.fromCharCode(dv.getUint8(4), dv.getUint8(5), dv.getUint8(6), dv.getUint8(7));
+    let head = 8;
+    if (size === 1 && dv.byteLength >= 16) {
+      size = Number(dv.getBigUint64(8));
+      head = 16;
+    } else if (size === 0) size = f.size - p;
+    if (size < head) break;
+    if (kind === 'moov') {
+      moov = [p + head, Math.min(f.size, p + size)];
+      break;
+    }
+    p += size;
+  }
+  if (!moov || moov[1] - moov[0] > 64 * 1048576) return null;
+  const dv = new DataView(await f.slice(moov[0], moov[1]).arrayBuffer());
+  const top = boxKids(dv, 0, dv.byteLength);
+  const mv = top.find(([k]) => k === 'mvhd');
+  if (!mv) return null;
+  const s = mv[1];
+  const v1 = dv.getUint8(s) === 1;
+  const scale = dv.getUint32(s + (v1 ? 20 : 12));
+  const len = v1 ? Number(dv.getBigUint64(s + 24)) : dv.getUint32(s + 16);
+  const out = { dur: scale ? len / scale : 0, w: 0, h: 0 };
+  top.filter(([k]) => k === 'trak').forEach(([, a, b]) => {
+    const tk = boxKids(dv, a, b).find(([k]) => k === 'tkhd');
+    if (!tk || out.w) return;
+    out.w = Math.round(dv.getUint32(tk[2] - 8) / 65536);
+    out.h = Math.round(dv.getUint32(tk[2] - 4) / 65536);
+  });
+  return out;
+};
 const videoMeta = (url) => new Promise((res, rej) => {
   const v = document.createElement('video');
   v.muted = true;
   v.playsInline = true;
-  v.preload = 'auto';
+  v.setAttribute('playsinline', '');
+  v.preload = 'metadata';
   const out = { dur: 0, w: 0, h: 0, thumb: '' };
   let fin = false;
   let to2 = 0;
@@ -1329,10 +1414,11 @@ const videoMeta = (url) => new Promise((res, rej) => {
     clearTimeout(to2);
     v.removeAttribute('src');
     v.load();
+    v.remove();
     if (ok) res(out);
     else rej(err);
   };
-  to1 = setTimeout(() => end(false, new Error('讀取逾時')), 20000);
+  to1 = setTimeout(() => end(false, new Error('瀏覽器沒有載入影片')), 10000);
   v.onloadedmetadata = () => {
     out.dur = v.duration;
     out.w = v.videoWidth;
@@ -1359,8 +1445,10 @@ const videoMeta = (url) => new Promise((res, rej) => {
     if (v.requestVideoFrameCallback) v.requestVideoFrameCallback(grab);
     setTimeout(grab, 350);
   };
-  v.onerror = () => end(false, v.error || new Error('影片無法解碼'));
+  v.onerror = () => end(false, Object.assign(new Error(v.error?.code === 4 ? '這個瀏覽器不支援此影片格式' : '影片無法解碼'), { hard: true }));
+  pool.appendChild(v);
   v.src = url;
+  v.load();
 });
 const audioDur = (url) => new Promise((res) => {
   const a = document.createElement('audio');
@@ -1374,7 +1462,24 @@ const decodeBuf = async (blob) => {
   const ab = await blob.arrayBuffer();
   const A = window.OfflineAudioContext || window.webkitOfflineAudioContext;
   const oc = new A(1, 1, 44100);
-  return oc.decodeAudioData(ab);
+  return within(new Promise((res, rej) => {
+    const p = oc.decodeAudioData(ab, res, rej);
+    if (p?.then) p.then(res, rej);
+  }), 30000, '解析音訊逾時');
+};
+const waveLater = async (m) => {
+  const cap = (navigator.maxTouchPoints > 0 ? 40 : 150) * 1048576;
+  if (m.type !== 'video' || m.wave || m.blob.size > cap) return;
+  try {
+    while (st.playing || busy) await sleep(800);
+    m.wave = waveOf(await decodeBuf(m.blob), '#ffffff');
+    if (!mm.has(m.id)) return;
+    renderTL();
+    const { url, img, ...rec } = m;
+    put('media', rec).catch((err) => console.error('波形存檔失敗', err));
+  } catch (err) {
+    console.error('產生波形失敗', err);
+  }
 };
 const waveOf = (buf, color) => {
   const n = clamp(Math.round(buf.duration * 40), 300, 4000);
@@ -1429,14 +1534,14 @@ const probe = async (f) => {
       r.thumb = snapThumb(img, r.w, r.h);
     }
     if (type === 'video') {
-      Object.assign(r, await videoMeta(url));
-      if (f.size < 200 * 1048576) {
-        try {
-          r.wave = waveOf(await decodeBuf(f), '#ffffff');
-        } catch (err) {
-          r.wave = '';
-        }
-      }
+      let why = '';
+      const [el, box] = await Promise.all([
+        videoMeta(url).catch((err) => { why = err; return null; }),
+        boxMeta(f).catch((err) => { console.error('解析影片檔頭失敗', err); return null; }),
+      ]);
+      if (el && Number.isFinite(el.dur) && el.dur > 0) Object.assign(r, el);
+      else if (box?.dur > 0 && !why?.hard) Object.assign(r, { dur: box.dur, w: el?.w || box.w, h: el?.h || box.h, thumb: el?.thumb || '' });
+      else throw why || new Error('讀不到影片長度');
     }
     if (type === 'audio') {
       try {
@@ -1473,13 +1578,14 @@ const addFiles = async (files) => {
       if (st.tab === 'media') renderSide();
     } catch (err) {
       console.error('匯入失敗', err);
-      toast(`「${list[i].name}」無法讀取`);
-      await sleep(900);
+      toast(`「${list[i].name}」無法讀取：${err?.message || '未知錯誤'}`);
+      await sleep(2200);
     }
   }
   if (!added.length) return;
   edit(() => added.forEach((m) => addMedia(m)));
   toast(`已匯入 ${added.length} 個素材並放上時間軸 ✅`);
+  (async () => { for (const m of added) await waveLater(m); })();
 };
 const removeMedia = async (id) => {
   const m = mm.get(id);
@@ -2168,7 +2274,7 @@ const bind = () => {
   view.addEventListener('pointerdown', (e) => {
     if (st.playing) return;
     const r = view.getBoundingClientRect();
-    const k = W / r.width;
+    const k = PW / r.width;
     const px = (e.clientX - r.left) * k;
     const py = (e.clientY - r.top) * k;
     let hit = null;
@@ -2197,8 +2303,8 @@ const bind = () => {
         moved = true;
         mark();
       }
-      let nx = ox + ((ev.clientX - e.clientX) * k) / W;
-      let ny = oy + ((ev.clientY - e.clientY) * k) / H;
+      let nx = ox + ((ev.clientX - e.clientX) * k) / PW;
+      let ny = oy + ((ev.clientY - e.clientY) * k) / PH;
       guide = { x: false, y: false };
       if (st.snap && Math.abs(nx - 0.5) < 0.015) { nx = 0.5; guide.x = true; }
       if (st.snap && Math.abs(ny - 0.5) < 0.015) { ny = 0.5; guide.y = true; }
