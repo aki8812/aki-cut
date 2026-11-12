@@ -76,17 +76,6 @@ const PRESETS = [
 ];
 const TYPE_LABEL = { video: '影片', image: '圖片', audio: '音訊', text: '文字' };
 const TYPE_IC = { video: 'film', image: 'image', audio: 'music', text: 'type' };
-const KEYS = [
-  ['播放 / 暫停', 'Space'],
-  ['分割', 'S'],
-  ['復原', 'Ctrl+Z'],
-  ['重做', 'Ctrl+Shift+Z'],
-  ['複製片段', 'Ctrl+D'],
-  ['刪除', 'Delete'],
-  ['逐格移動', '← →'],
-  ['移動一秒', 'Shift+← →'],
-  ['回到開頭', 'Home'],
-];
 const RNG = {
   size: { min: 12, max: 220, step: 1, f: (v) => `${Math.round(v)}` },
   scale: { min: 0.1, max: 3, step: 0.01, f: pct },
@@ -678,7 +667,7 @@ const drawPreview = () => {
     const b = boxes.find((x) => x.id === st.sel);
     if (b) {
       vctx.save();
-      vctx.strokeStyle = '#ffd60a';
+      vctx.strokeStyle = '#0a84ff';
       vctx.lineWidth = 2 * k;
       vctx.setLineDash([8 * k, 6 * k]);
       vctx.strokeRect(b.x, b.y, b.w, b.h);
@@ -686,7 +675,7 @@ const drawPreview = () => {
     }
     if (guide) {
       vctx.save();
-      vctx.strokeStyle = 'rgba(34, 211, 238, 0.9)';
+      vctx.strokeStyle = 'rgba(10, 132, 255, 0.9)';
       vctx.lineWidth = 1.5 * k;
       vctx.beginPath();
       if (guide.x) { vctx.moveTo(PW / 2, 0); vctx.lineTo(PW / 2, PH); }
@@ -822,7 +811,7 @@ const playEl = (e) => {
     e.el.play().catch(() => {});
     if (!warned) {
       warned = true;
-      toast('瀏覽器擋住了部分聲音，暫停後再按一次播放就好 🔊');
+      toast('聲音被瀏覽器暫停，請重新播放');
     }
   });
 };
@@ -940,7 +929,7 @@ const play = () => {
   if (st.playing || busy) return;
   const T = total();
   if (T <= 0) {
-    toast('時間軸還是空的，先匯入素材吧 🎬');
+    toast('時間軸是空的');
     return;
   }
   unlock();
@@ -1004,27 +993,27 @@ const drawRuler = () => {
   const step = STEPS.find((s) => s * p >= 64) || 600;
   const sub = (step * p) / 5 >= 7 ? step / 5 : step / 2;
   const end = (sl + cw) / p + sub;
-  g.font = '600 10px "Roboto Mono", monospace';
+  g.font = '500 10px ui-monospace, "SF Mono", "Roboto Mono", monospace';
   g.textBaseline = 'top';
   g.lineWidth = 1;
   for (let i = Math.floor(sl / p / sub); i * sub <= end; i++) {
     const t = i * sub;
     const x = Math.round(t * p - sl) + 0.5;
     const major = Math.abs(t / step - Math.round(t / step)) < 1e-6;
-    g.strokeStyle = major ? '#5a5a5a' : '#333333';
+    g.strokeStyle = major ? '#636366' : '#3a3a3c';
     g.beginPath();
     g.moveTo(x, major ? 16 : 23);
     g.lineTo(x, 30);
     g.stroke();
     if (major) {
-      g.fillStyle = '#8a8a8a';
+      g.fillStyle = '#8e8e93';
       const n = Math.round(t);
       g.fillText(step < 1 ? `${t.toFixed(1)}s` : `${Math.floor(n / 60)}:${pad(n % 60)}`, x + 4, 5);
     }
   }
   const px = st.t * p - sl;
   if (px >= -8 && px <= cw + 8) {
-    g.fillStyle = '#ffd60a';
+    g.fillStyle = '#ffffff';
     g.beginPath();
     g.moveTo(px - 6, 0);
     g.lineTo(px + 6, 0);
@@ -1234,7 +1223,7 @@ const addText = (pre) => {
     st.sel = made.id;
   });
   fontsFor(made);
-  toast('已加入文字，可以在編輯面板改內容 ✍️');
+  toast('已加入文字');
 };
 
 const splitAt = () => {
@@ -1244,7 +1233,7 @@ const splitAt = () => {
   const s = sel();
   if (s && hit(s)) list = [s];
   if (!list.length) {
-    toast('播放頭沒有對到可以分割的片段');
+    toast('播放頭位置沒有片段');
     return;
   }
   edit(() => {
@@ -1547,7 +1536,7 @@ const probe = async (f) => {
       try {
         const b = await decodeBuf(f);
         r.dur = b.duration;
-        r.wave = waveOf(b, '#5eead4');
+        r.wave = waveOf(b, '#8ef0aa');
       } catch (err) {
         r.dur = await audioDur(url);
       }
@@ -1560,14 +1549,14 @@ const probe = async (f) => {
   const m = addLib(r);
   put('media', r).catch((err) => {
     console.error('素材存檔失敗', err);
-    toast('儲存空間不足，這個素材重新整理後會消失');
+    toast('儲存空間不足，素材無法保留');
   });
   return m;
 };
 const addFiles = async (files) => {
   const list = files.filter(kindOfFile);
   if (!list.length) {
-    toast('這些檔案格式不支援 😢');
+    toast('不支援的檔案格式');
     return;
   }
   const added = [];
@@ -1584,7 +1573,7 @@ const addFiles = async (files) => {
   }
   if (!added.length) return;
   edit(() => added.forEach((m) => addMedia(m)));
-  toast(`已匯入 ${added.length} 個素材並放上時間軸 ✅`);
+  toast(`已匯入 ${added.length} 個素材`);
   (async () => { for (const m of added) await waveLater(m); })();
 };
 const removeMedia = async (id) => {
@@ -1593,7 +1582,7 @@ const removeMedia = async (id) => {
   const n = st.clips.filter((c) => c.media === id).length;
   const ok = await ask({
     title: '刪除素材',
-    text: n ? `「${esc(m.name)}」在時間軸上有 ${n} 個片段，會一起移除。` : `確定要把「${esc(m.name)}」從素材庫移除嗎？`,
+    text: n ? `「${esc(m.name)}」在時間軸上有 ${n} 個片段，會一起移除。` : `要從素材庫移除「${esc(m.name)}」？`,
     btns: [{ label: '取消', v: 0 }, { label: '刪除', cls: 'danger', v: 1 }],
   });
   if (ok !== 1) return;
@@ -1630,12 +1619,11 @@ const preStyle = (p) => [
 const renderSide = () => {
   $$('#sideTab button').forEach((b) => b.classList.toggle('on', b.dataset.tab === st.tab));
   if (st.tab === 'media') {
-    sideView.innerHTML = `<button class="drop" data-pick-file><i data-ic>${ic('upload')}</i><b>匯入素材</b><small>影片、圖片、音樂都可以，也能直接拖進來</small></button>
-      <div class="lib">${lib.length ? lib.map(cardHTML).join('') : '<div class="empty">還沒有素材<br>點上面的按鈕開始匯入 ✨</div>'}</div>`;
+    sideView.innerHTML = `<button class="drop" data-pick-file>${ic('plus')}匯入</button>
+      ${lib.length ? `<div class="lib">${lib.map(cardHTML).join('')}</div>` : `<div class="empty">${ic('film')}<span>沒有素材</span></div>`}`;
     return;
   }
-  sideView.innerHTML = `<div class="presets">${PRESETS.map((p, i) => `<button class="pre" data-pre="${i}"><span style="${preStyle(p)}">${esc(p.text)}</span></button>`).join('')}</div>
-    <p class="note" style="margin-top:14px">點一下就會加到播放頭的位置，之後在編輯面板改內容、字型和顏色。</p>`;
+  sideView.innerHTML = `<div class="presets">${PRESETS.map((p, i) => `<button class="pre" data-pre="${i}"><span style="${preStyle(p)}">${esc(p.text)}</span></button>`).join('')}</div>`;
 };
 
 const rr = (label, c, k) => {
@@ -1643,15 +1631,14 @@ const rr = (label, c, k) => {
   const v = getK(c, k);
   return `<div class="rr"><span>${label}</span><input type="range" class="ios-range" data-k="${k}" min="${r.min}" max="${r.max}" step="${r.step}" value="${v}"><b>${r.f(v)}</b></div>`;
 };
-const grp = (title, color, body) => `<div class="grp" style="--c:${color}"><h4><i data-ic></i>${title}</h4>${body}</div>`;
+const grp = (title, body) => `<div class="grp"><h4>${title}</h4>${body}</div>`;
 const chips = (pick, list, cur) => `<div class="chips" data-pick="${pick}">${list.map(([v, l]) => `<button data-v="${v}" class="${String(cur) === String(v) ? 'on' : ''}">${l}</button>`).join('')}</div>`;
 const lookOn = (f, look) => {
   const t = { ...BASE_F, ...look };
   return Object.keys(BASE_F).every((k) => Math.abs((f[k] ?? BASE_F[k]) - t[k]) < 0.005);
 };
 const lookIdx = (f) => LOOKS.findIndex(([, l]) => lookOn(f, l));
-const blankHTML = () => `<div class="blank"><i data-ic>${ic('pointer')}</i><div>點一下時間軸或預覽畫面上的片段<br>就能調整文字、濾鏡、轉場和音訊</div><div class="note">${st.ratio} · 總長 ${fmt(total())} · ${st.clips.length} 個片段</div></div>
-  <div class="keys"><h5>⌨️ 快捷鍵</h5>${KEYS.map(([a, b]) => `<div>${a}<kbd>${b}</kbd></div>`).join('')}</div>`;
+const blankHTML = () => `<div class="blank">${ic('pointer')}<span>未選取</span></div>`;
 const renderInsp = () => {
   const c = sel();
   $('#inspTitle').textContent = c ? `編輯${TYPE_LABEL[c.type]}` : '編輯';
@@ -1662,7 +1649,7 @@ const renderInsp = () => {
   const media = c.type === 'video' || c.type === 'image';
   let h = `<div class="ihead k-${c.type}"><div class="kd">${ic(TYPE_IC[c.type])}</div><div><b>${esc(clipName(c))}</b><small>${fmt(c.start)} → ${fmt(c.start + c.len)} · ${c.len.toFixed(2)} 秒</small></div></div>`;
   if (c.type === 'text') {
-    h += grp('文字', '#fbbf24', `
+    h += grp('文字', `
       <div class="line up"><span class="lb">內容</span><textarea class="ta" data-k="text" rows="2">${esc(c.text)}</textarea></div>
       <div class="line"><span class="lb">字型</span><div class="seg" data-pick="font">${[['hei', '黑體'], ['ming', '明體'], ['kai', '文楷']].map(([v, l]) => `<button data-v="${v}" class="${c.font === v ? 'on' : ''}">${l}</button>`).join('')}</div></div>
       ${rr('字級', c, 'size')}
@@ -1673,15 +1660,14 @@ const renderInsp = () => {
       <div class="line"><span class="lb">位置</span>${chips('pos', [['0.15', '上'], ['0.5', '中'], ['0.85', '下']], c.x === 0.5 ? String(c.y) : '')}</div>`);
   }
   if (c.type !== 'audio') {
-    h += grp('畫面', '#38bdf8', `
+    h += grp('畫面', `
       ${rr('縮放', c, 'scale')}
       ${rr('透明', c, 'opacity')}
       ${media ? `<div class="line"><span class="lb">比例</span><div class="seg" data-pick="fit"><button data-v="contain" class="${c.fit === 'contain' ? 'on' : ''}">完整顯示</button><button data-v="cover" class="${c.fit === 'cover' ? 'on' : ''}">填滿畫面</button></div></div>
-      <div class="line"><span class="lb">位置</span>${chips('center', [['1', '回到正中央']], '')}</div>` : ''}
-      <p class="note">也可以直接在預覽畫面拖曳移動位置。</p>`);
+      <div class="line"><span class="lb">位置</span>${chips('center', [['1', '回到正中央']], '')}</div>` : ''}`);
   }
   if (media) {
-    h += grp('濾鏡', '#f472b6', `
+    h += grp('濾鏡', `
       ${chips('look', LOOKS.map(([n], i) => [i, n]), lookIdx(c.filter))}
       ${rr('亮度', c, 'filter.bright')}
       ${rr('對比', c, 'filter.contrast')}
@@ -1690,15 +1676,15 @@ const renderInsp = () => {
       ${rr('懷舊', c, 'filter.sepia')}`);
   }
   if (c.type !== 'audio') {
-    h += grp('轉場', '#fb923c', `
+    h += grp('轉場', `
       <div class="line"><span class="lb">進場</span>${chips('tinKind', [['none', '無'], ['fade', '淡入'], ['slide', '滑入'], ['zoom', '放大']], c.tinKind)}</div>
       ${rr('長度', c, 'tin')}
       <div class="line"><span class="lb">出場</span>${chips('toutKind', [['none', '無'], ['fade', '淡出'], ['slide', '滑出'], ['shrink', '縮小']], c.toutKind)}</div>
       ${rr('長度', c, 'tout')}`);
   }
   if (isAV(c)) {
-    h += grp('音訊', '#2dd4bf', `${rr('音量', c, 'volume')}${rr('淡入', c, 'afin')}${rr('淡出', c, 'afout')}`);
-    h += grp('速度', '#a3e635', chips('speed', [0.25, 0.5, 1, 1.5, 2, 3].map((v) => [v, `${v}x`]), c.speed));
+    h += grp('音訊', `${rr('音量', c, 'volume')}${rr('淡入', c, 'afin')}${rr('淡出', c, 'afout')}`);
+    h += grp('速度', chips('speed', [0.25, 0.5, 1, 1.5, 2, 3].map((v) => [v, `${v}x`]), c.speed));
   }
   h += `<div class="acts"><button class="btn" data-act="split">${ic('scissors')}分割</button><button class="btn" data-act="dup">${ic('copy')}複製</button><button class="btn danger" data-act="del">${ic('trash')}刪除</button></div>`;
   inspBody.innerHTML = h;
@@ -1966,11 +1952,11 @@ const seekFor = async (t) => {
 const exportDlg = () => {
   if (busy) return;
   if (!total()) {
-    toast('時間軸是空的，沒有東西可以匯出');
+    toast('時間軸是空的');
     return;
   }
   if (typeof VideoEncoder === 'undefined' || typeof VideoFrame === 'undefined') {
-    ask({ title: '這個瀏覽器不支援匯出', text: '匯出 MP4 需要 WebCodecs，請改用最新版的 Chrome、Edge，或 Safari 17 以上。', btns: [{ label: '知道了', cls: 'primary', v: 1 }] });
+    ask({ title: '無法匯出', text: '此瀏覽器不支援 WebCodecs，請改用最新版 Chrome、Edge 或 Safari 17 以上。', btns: [{ label: '好', cls: 'primary', v: 1 }] });
     return;
   }
   if (st.playing) pause();
@@ -1978,12 +1964,14 @@ const exportDlg = () => {
   const dims = () => `${Math.round((W * (opt.res === '1080' ? 1.5 : 1)) / 2) * 2} × ${Math.round((H * (opt.res === '1080' ? 1.5 : 1)) / 2) * 2}`;
   let go = null;
   const md = modal({
-    title: '匯出 MP4 🎬',
+    title: '匯出',
     wide: true,
     lock: true,
     html: `<div class="ex-row"><span>解析度</span><div class="seg" data-o="res"><button data-v="720" class="on">720p</button><button data-v="1080">1080p</button></div></div>
       <div class="ex-row"><span>影格率</span><div class="seg" data-o="fps"><button data-v="30" class="on">30 fps</button><button data-v="60">60 fps</button></div></div>
-      <p class="modal-text">長度 ${fmt(total())}，畫面 <b data-dims>${dims()}</b>。匯出時請停留在這個分頁，切走會變慢。</p>`,
+      <div class="ex-row"><span>長度</span><b>${fmt(total())}</b></div>
+      <div class="ex-row"><span>畫面</span><b data-dims>${dims()}</b></div>
+      <p class="modal-text">匯出期間請停留在此分頁</p>`,
     btns: [{ label: '取消', v: 0 }, { label: '開始匯出', cls: 'primary', keep: true, on: () => go() }],
   });
   md.box.addEventListener('click', (e) => {
@@ -2017,7 +2005,7 @@ const exportDlg = () => {
       const url = URL.createObjectURL(out.blob);
       const file = new File([out.blob], name, { type: 'video/mp4' });
       const share = !!navigator.canShare?.({ files: [file] });
-      body.innerHTML = `<video class="ex-vid" src="${url}" controls playsinline></video><p class="modal-text">完成！檔案大小 ${(out.blob.size / 1048576).toFixed(1)} MB${out.lost ? '。這個瀏覽器不支援音訊編碼，所以這次只有畫面' : ''} 🎉</p>`;
+      body.innerHTML = `<video class="ex-vid" src="${url}" controls playsinline></video><div class="ex-row"><span>檔案大小</span><b>${(out.blob.size / 1048576).toFixed(1)} MB</b></div>${out.lost ? '<p class="modal-text">此瀏覽器不支援音訊編碼，僅匯出畫面</p>' : ''}`;
       acts.innerHTML = `<button class="modal-btn ghost" data-x>關閉</button>${share ? '<button class="modal-btn ghost" data-sh>分享</button>' : ''}<button class="modal-btn primary" data-dl>下載 MP4</button>`;
       $('[data-x]', acts).onclick = () => {
         md.close();
@@ -2032,7 +2020,7 @@ const exportDlg = () => {
         a.remove();
       };
       const sh = $('[data-sh]', acts);
-      if (sh) sh.onclick = () => navigator.share({ files: [file], title: 'Aki Cut' }).catch(() => {});
+      if (sh) sh.onclick = () => navigator.share({ files: [file], title: 'AkiCut' }).catch(() => {});
     } catch (err) {
       console.error('匯出失敗', err);
       body.innerHTML = `<p class="modal-text">匯出失敗：${esc(err?.message || err)}</p>`;
@@ -2049,7 +2037,7 @@ const exportDlg = () => {
 const newProject = async () => {
   const v = await ask({
     title: '開新專案',
-    text: '「只清時間軸」之後還能用復原救回來；「全部清除」會連素材庫一起刪掉，無法復原。',
+    text: '「全部清除」會一併刪除素材庫，無法復原。',
     btns: [{ label: '取消', v: 0 }, { label: '全部清除', cls: 'danger', v: 2 }, { label: '只清時間軸', cls: 'primary', v: 1 }],
   });
   if (!v) return;
@@ -2069,7 +2057,7 @@ const newProject = async () => {
     renderSide();
     updateBtns();
   }
-  toast('已開新專案 ✨');
+  toast('已開新專案');
 };
 
 const onKey = (e) => {
@@ -2150,7 +2138,7 @@ const bind = () => {
       if (!m) return;
       let c = null;
       edit(() => { c = addMedia(m); });
-      toast(`已把「${m.name}」放上時間軸 ✅`);
+      toast(`已加入「${m.name}」`);
       if (c) select(c.id);
       return;
     }
@@ -2183,7 +2171,7 @@ const bind = () => {
   $('#snapBtn').addEventListener('click', (e) => {
     st.snap = !st.snap;
     e.currentTarget.classList.toggle('on', st.snap);
-    toast(st.snap ? '吸附對齊：開 🧲' : '吸附對齊：關');
+    toast(st.snap ? '吸附：開' : '吸附：關');
   });
   $('#addTrack').addEventListener('click', async () => {
     const v = await ask({ title: '新增軌道', text: '影像軌放影片、圖片和文字，越上面的軌道會疊在越上層；音訊軌放音樂和音效。', btns: [{ label: '取消', v: 0 }, { label: '音訊軌', v: 'a' }, { label: '影像軌', cls: 'primary', v: 'v' }] });
@@ -2400,7 +2388,7 @@ const load = async () => {
     st.clips.filter((c) => c.type === 'text').forEach(fontsFor);
   } catch (err) {
     console.error('讀取專案失敗', err);
-    toast('讀不到上次的專案，已開一個新的');
+    toast('無法讀取上次的專案');
   }
 };
 
