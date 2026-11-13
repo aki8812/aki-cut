@@ -52,11 +52,17 @@
       </div>
       <div class="transport">
         <div class="tc" id="tc">00:00.00 <em>/ 00:00.00</em></div>
-        <button class="ib" id="goStart" data-tip="回到開頭" data-tip-pos="top"><i data-ic="skipBack"></i></button>
-        <button class="ib" id="stepBack" data-tip="上一格" data-tip-pos="top"><i data-ic="chevL"></i></button>
-        <button class="play" id="playBtn" data-tip="播放 / 暫停（空白鍵）" data-tip-pos="top"><i data-ic="play"></i></button>
-        <button class="ib" id="stepFwd" data-tip="下一格" data-tip-pos="top"><i data-ic="chevR"></i></button>
-        <button class="ib" id="goEnd" data-tip="跳到結尾" data-tip-pos="top"><i data-ic="skipFwd"></i></button>
+        <div class="ctl">
+          <button class="ib far" id="goStart" data-tip="回到開頭" data-tip-pos="top"><i data-ic="skipBack"></i></button>
+          <button class="ib" id="stepBack" data-tip="上一格" data-tip-pos="top"><i data-ic="chevL"></i></button>
+          <button class="play" id="playBtn" data-tip="播放 / 暫停（空白鍵）" data-tip-pos="top"><i data-ic="play"></i></button>
+          <button class="ib" id="stepFwd" data-tip="下一格" data-tip-pos="top"><i data-ic="chevR"></i></button>
+          <button class="ib far" id="goEnd" data-tip="跳到結尾" data-tip-pos="top"><i data-ic="skipFwd"></i></button>
+        </div>
+        <div class="tx">
+          <button class="ib" id="shotBtn" data-tip="截圖" data-tip-pos="top"><i data-ic="camera"></i></button>
+          <button class="ib" id="fullBtn" data-tip="全螢幕（F）" data-tip-pos="top"><i data-ic="maximize"></i></button>
+        </div>
       </div>
     </main>
 
@@ -80,10 +86,12 @@
         <button class="ib" id="delBtn" data-tip="刪除（Delete）"><i data-ic="trash"></i></button>
         <span class="sep"></span>
         <button class="ib on" id="snapBtn" data-tip="吸附對齊"><i data-ic="magnet"></i></button>
+        <button class="ib" id="markBtn" data-tip="標記（M）"><i data-ic="flag"></i></button>
         <button class="ib" id="addTrack" data-tip="新增軌道"><i data-ic="layers"></i></button>
         <div class="zoom">
+          <button class="ib" id="fitBtn" data-tip="顯示全部"><i data-ic="fit"></i></button>
           <button class="ib" id="zoomOut" data-tip="縮小時間軸"><i data-ic="zoomOut"></i></button>
-          <input type="range" class="ios-range" id="zoom" min="10" max="300" value="60">
+          <input type="range" class="ios-range" id="zoom" min="0" max="100" step="0.1" value="68">
           <button class="ib" id="zoomIn" data-tip="放大時間軸"><i data-ic="zoomIn"></i></button>
         </div>
       </div>
@@ -109,7 +117,8 @@
   </div>
 
   <div id="pool"></div>
-  <input type="file" id="file" accept="video/*,image/*,audio/*" multiple hidden>
+  <input type="file" id="file" accept="video/*,image/*,audio/*,.srt,.vtt" multiple hidden>
+  <input type="file" id="subFile" accept=".srt,.vtt" hidden>
   <div id="toast"></div>
   <div id="aki-footer">Made by Aki</div>
 
